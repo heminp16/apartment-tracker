@@ -1,0 +1,11 @@
+*.bak
+.DS_Store
+.AppleDouble
+.LSOverride
+.vscode/
+.idea/
+*.swp
+*.swo
+.env
+.env.*
+node_modules/

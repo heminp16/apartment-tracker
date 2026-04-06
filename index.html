@@ -1,0 +1,797 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Apt Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg:      #080c14; --surface: #0d1321; --card: #111827;
+  --border:  #1e293b; --border2: #263145;
+  --accent:  #38bdf8; --accent2: #818cf8;
+  --green:   #34d399; --yellow: #fbbf24; --red: #f87171;
+  --text:    #e2e8f0; --muted:  #64748b;
+  --mono:    'Space Mono', monospace; --sans: 'DM Sans', sans-serif;
+}
+body { font-family: var(--sans); background: var(--bg); color: var(--text); min-height: 100vh; overflow-x: hidden; }
+
+/* LOGIN */
+#login-screen { min-height:100vh; display:flex; align-items:center; justify-content:center; position:relative; overflow:hidden; }
+#login-screen::before { content:''; position:absolute; inset:0; background: radial-gradient(ellipse 60% 50% at 20% 30%, rgba(56,189,248,.08) 0%, transparent 70%), radial-gradient(ellipse 40% 60% at 80% 70%, rgba(129,140,248,.06) 0%, transparent 70%); pointer-events:none; }
+.login-grid { position:absolute; inset:0; background-image: linear-gradient(rgba(30,41,59,.4) 1px, transparent 1px), linear-gradient(90deg, rgba(30,41,59,.4) 1px, transparent 1px); background-size:60px 60px; pointer-events:none; }
+.login-box { position:relative; width:420px; background:var(--card); border:1px solid var(--border2); border-radius:20px; padding:48px 40px; box-shadow:0 40px 80px rgba(0,0,0,.6); animation:slideUp .5s cubic-bezier(.16,1,.3,1); }
+@keyframes slideUp { from{opacity:0;transform:translateY(24px)} to{opacity:1;transform:translateY(0)} }
+.login-icon  { font-size:48px; text-align:center; display:block; margin-bottom:8px; }
+.login-title { font-family:var(--mono); font-size:22px; font-weight:700; color:var(--accent); text-align:center; margin-bottom:6px; }
+.login-sub   { font-size:13px; color:var(--muted); text-align:center; margin-bottom:36px; }
+.login-label { display:block; font-size:10px; font-weight:600; letter-spacing:1.5px; text-transform:uppercase; color:var(--muted); margin-bottom:8px; }
+.login-input { width:100%; padding:13px 16px; background:var(--surface); border:1px solid var(--border2); border-radius:10px; color:var(--text); font-family:var(--mono); font-size:18px; letter-spacing:4px; outline:none; transition:border-color .2s, box-shadow .2s; margin-bottom:20px; }
+.login-input:focus { border-color:var(--accent); box-shadow:0 0 0 3px rgba(56,189,248,.12); }
+.login-btn { width:100%; padding:14px; background:var(--accent); color:#000; border:none; border-radius:10px; font-family:var(--mono); font-size:14px; font-weight:700; letter-spacing:1px; cursor:pointer; transition:opacity .2s, transform .1s; }
+.login-btn:hover { opacity:.9; } .login-btn:active { transform:scale(.98); } .login-btn:disabled { opacity:.5; cursor:not-allowed; }
+.login-error { font-size:12px; color:var(--red); text-align:center; margin-top:12px; min-height:18px; font-family:var(--mono); }
+
+/* APP */
+#app { display:none; flex-direction:column; height:100vh; }
+.topbar { display:flex; align-items:center; justify-content:space-between; padding:14px 24px; background:var(--surface); border-bottom:1px solid var(--border); flex-shrink:0; gap:12px; flex-wrap:wrap; }
+.topbar-left  { display:flex; align-items:center; gap:12px; }
+.topbar-right { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.topbar-logo  { font-family:var(--mono); font-size:15px; font-weight:700; color:var(--accent); }
+.topbar-count { font-size:11px; color:var(--muted); background:var(--card); border:1px solid var(--border); padding:3px 10px; border-radius:20px; font-family:var(--mono); }
+.sync-status  { font-size:11px; font-family:var(--mono); padding:4px 10px; border-radius:20px; border:1px solid var(--border); color:var(--muted); display:flex; align-items:center; gap:5px; }
+.sync-dot { width:6px; height:6px; border-radius:50%; background:var(--muted); flex-shrink:0; }
+.sync-dot.ok      { background:var(--green); box-shadow:0 0 6px var(--green); }
+.sync-dot.err     { background:var(--red); }
+.sync-dot.loading { background:var(--yellow); animation:pulse 1s infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+.btn { display:inline-flex; align-items:center; gap:6px; padding:7px 14px; border:none; border-radius:8px; font-family:var(--sans); font-size:13px; font-weight:600; cursor:pointer; transition:opacity .15s, transform .1s; white-space:nowrap; }
+.btn:hover { opacity:.85; } .btn:active { transform:scale(.97); }
+.btn-ghost  { background:var(--card); border:1px solid var(--border2); color:var(--muted); }
+.btn-ghost:hover { color:var(--text); }
+.btn-accent { background:var(--accent);  color:#000; }
+.btn-green  { background:var(--green);   color:#000; }
+.btn-purple { background:var(--accent2); color:#fff; }
+.btn-red    { background:rgba(248,113,113,.15); color:var(--red); border:1px solid rgba(248,113,113,.3); }
+.btn-logout { background:transparent; color:var(--muted); border:1px solid var(--border); font-size:12px; padding:5px 10px; }
+
+.filterbar { display:flex; align-items:center; gap:10px; padding:10px 24px; background:var(--card); border-bottom:1px solid var(--border); flex-shrink:0; flex-wrap:wrap; }
+.filter-search { flex:1; min-width:180px; padding:8px 14px; background:var(--surface); border:1px solid var(--border2); border-radius:8px; color:var(--text); font-family:var(--sans); font-size:13px; outline:none; }
+.filter-search:focus { border-color:var(--accent); }
+.filter-search::placeholder { color:var(--muted); }
+.filter-select { padding:8px 12px; background:var(--surface); border:1px solid var(--border2); border-radius:8px; color:var(--text); font-family:var(--sans); font-size:13px; outline:none; cursor:pointer; }
+
+.table-wrap { flex:1; overflow:auto; }
+table { border-collapse:collapse; width:max-content; min-width:100%; font-size:13px; }
+thead th { position:sticky; top:0; z-index:10; background:var(--surface); color:var(--accent); padding:10px 14px; border-bottom:1px solid var(--border2); border-right:1px solid var(--border); white-space:nowrap; text-align:left; cursor:pointer; user-select:none; font-family:var(--mono); font-size:11px; letter-spacing:0.5px; min-width:90px; }
+thead th:hover { background:var(--card); color:var(--text); }
+thead th.nosort { cursor:default; }
+thead th.nosort:hover { background:var(--surface); color:var(--accent); }
+tbody tr:nth-child(even) { background:rgba(255,255,255,.01); }
+tbody tr:hover { background:rgba(56,189,248,.04) !important; }
+td { padding:9px 14px; border-bottom:1px solid var(--border); border-right:1px solid rgba(30,41,59,.5); white-space:nowrap; max-width:220px; overflow:hidden; text-overflow:ellipsis; vertical-align:middle; }
+td[contenteditable]:focus { outline:2px solid var(--accent); background:var(--surface); white-space:normal; overflow:visible; }
+td a { color:var(--accent); text-decoration:none; font-weight:600; }
+td a:hover { text-decoration:underline; opacity:.8; }
+.cell-price { color:var(--accent); font-weight:700; font-family:var(--mono); }
+.cell-now   { color:var(--green);  font-weight:700; }
+.cell-soon  { color:var(--yellow); font-weight:600; }
+.cell-na    { color:var(--muted);  font-style:italic; }
+.cell-notes { color:var(--muted);  font-style:italic; background:rgba(0,0,0,.2); min-width:160px; }
+.badge { display:inline-block; padding:2px 8px; border-radius:20px; font-size:11px; font-weight:700; font-family:var(--mono); }
+.badge-g { background:rgba(52,211,153,.15);  color:var(--green); }
+.badge-y { background:rgba(251,191,36,.15);  color:var(--yellow); }
+.badge-r { background:rgba(248,113,113,.15); color:var(--red); }
+.del-btn { background:transparent; border:1px solid rgba(248,113,113,.3); color:rgba(248,113,113,.7); border-radius:6px; padding:3px 8px; cursor:pointer; font-size:12px; transition:all .15s; }
+.del-btn:hover { background:rgba(248,113,113,.15); color:var(--red); border-color:var(--red); }
+
+/* Reactions */
+.reactions { display:flex; gap:4px; align-items:center; }
+.react-btn { background:none; border:1px solid var(--border2); border-radius:8px; padding:3px 7px; cursor:pointer; font-size:14px; transition:all .15s; line-height:1.4; }
+.react-btn:hover { border-color:var(--accent); background:rgba(56,189,248,.08); }
+.react-btn.on { border-color:var(--accent2); background:rgba(129,140,248,.15); transform:scale(1.1); }
+
+.empty { display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; gap:12px; color:var(--muted); padding:60px 20px; }
+.empty-icon { font-size:52px; filter:grayscale(1); opacity:.4; }
+.empty-text { font-size:15px; } .empty-sub { font-size:13px; opacity:.6; }
+
+.statsbar { display:flex; gap:24px; align-items:center; padding:8px 24px; background:var(--surface); border-top:1px solid var(--border); flex-shrink:0; flex-wrap:wrap; }
+.stat { font-size:12px; color:var(--muted); } .stat b { color:var(--accent); font-family:var(--mono); }
+
+/* Modals */
+.modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,.8); z-index:1000; display:none; align-items:center; justify-content:center; padding:20px; }
+.modal-overlay.open { display:flex; }
+.modal { background:var(--card); border:1px solid var(--border2); border-radius:16px; padding:32px; width:100%; max-width:580px; max-height:88vh; overflow-y:auto; box-shadow:0 40px 80px rgba(0,0,0,.6); }
+.modal h2 { font-family:var(--mono); font-size:16px; color:var(--accent); margin-bottom:10px; }
+.modal p  { font-size:13px; color:var(--muted); line-height:1.7; margin-bottom:16px; }
+.form-field { margin-bottom:14px; }
+.form-field label { display:block; font-size:10px; font-weight:600; letter-spacing:1.5px; text-transform:uppercase; color:var(--muted); margin-bottom:6px; }
+.form-field input, .form-field textarea { width:100%; padding:10px 13px; background:var(--surface); border:1px solid var(--border2); border-radius:8px; color:var(--text); font-family:var(--sans); font-size:13px; outline:none; transition:border-color .2s; }
+.form-field input:focus, .form-field textarea:focus { border-color:var(--accent); }
+.paste-area { width:100%; height:110px; padding:12px; background:var(--surface); border:1px solid var(--border2); border-radius:8px; color:var(--text); font-family:var(--mono); font-size:12px; outline:none; resize:vertical; line-height:1.5; }
+.paste-area:focus { border-color:var(--accent); }
+.paste-area::placeholder { color:var(--muted); }
+.modal-msg { font-size:12px; margin-top:10px; min-height:18px; font-family:var(--mono); }
+
+/* Picker */
+.pill-row { display:flex; gap:5px; flex-wrap:wrap; }
+.pill { padding:3px 11px; border-radius:20px; border:1px solid var(--border2); background:var(--surface); color:var(--muted); cursor:pointer; font-size:12px; font-weight:600; transition:all .15s; }
+.pill.active { background:var(--accent); border-color:var(--accent); color:#000; }
+.unit-list { max-height:300px; overflow-y:auto; border:1px solid var(--border); border-radius:8px; margin:12px 0; }
+.unit-item { display:flex; align-items:flex-start; gap:12px; padding:11px 14px; border-bottom:1px solid var(--border); cursor:pointer; transition:background .12s; }
+.unit-item:last-child { border-bottom:none; }
+.unit-item:hover { background:rgba(56,189,248,.05); }
+.unit-item input[type=checkbox] { margin-top:3px; width:15px; height:15px; accent-color:var(--accent); flex-shrink:0; cursor:pointer; }
+.unit-name  { font-weight:700; color:var(--text); font-size:14px; }
+.unit-price { color:var(--accent); font-family:var(--mono); font-weight:700; margin-left:8px; }
+.unit-meta  { font-size:12px; color:var(--muted); margin-top:3px; display:flex; gap:12px; flex-wrap:wrap; }
+.avail-now  { color:var(--green); font-weight:700; font-size:11px; margin-left:6px; }
+.avail-soon { color:var(--yellow); font-size:11px; margin-left:6px; }
+</style>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-screen">
+  <div class="login-grid"></div>
+  <div class="login-box">
+    <span class="login-icon">⌂</span>
+    <div class="login-title">APT TRACKER</div>
+    <div class="login-sub">Enter the shared passcode to continue</div>
+    <label class="login-label">Passcode</label>
+    <input type="password" class="login-input" id="passcode-input" placeholder="••••••" maxlength="30"
+           onkeydown="if(event.key==='Enter') tryLogin()">
+    <button class="login-btn" id="login-btn" onclick="tryLogin()">ENTER →</button>
+    <div class="login-error" id="login-error"></div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <div class="topbar">
+    <div class="topbar-left">
+      <div class="topbar-logo">APT TRACKER</div>
+      <div class="topbar-count" id="unit-count">0 units</div>
+      <div class="sync-status" id="sync-status">
+        <div class="sync-dot" id="sync-dot"></div>
+        <span id="sync-label">—</span>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <button class="btn btn-purple" onclick="openAddModal()">+ Add from Link</button>
+      <button class="btn btn-green" onclick="uploadXLS()">↑ Upload Data</button>
+      <button class="btn btn-ghost"  onclick="syncPull()">⟳ Refresh</button>
+      <button class="btn btn-ghost"  onclick="openSettings()">≡ Settings</button>
+      <button class="btn btn-green"  onclick="exportXLS()">↓ Excel</button>
+      <button class="btn btn-red"    onclick="confirmClear()">× Clear All</button>
+      <button class="btn btn-logout" onclick="logout()">Sign out</button>
+    </div>
+  </div>
+
+  <div class="filterbar">
+    <input class="filter-search" id="q" type="text" placeholder="/  Search building, unit, price…" oninput="render()">
+    <select class="filter-select" id="fa" onchange="render()">
+      <option value="">All Availability</option>
+      <option value="now">✓ Now</option>
+      <option value="future">› Future</option>
+    </select>
+    <select class="filter-select" id="ff" onchange="render()">
+      <option value="">All Reactions</option>
+      <option value="❤️">❤️ Loved</option>
+      <option value="⭐">⭐ Starred</option>
+      <option value="🤔">🤔 Maybe</option>
+      <option value="👎">👎 Nope</option>
+    </select>
+    <select class="filter-select" id="fb"  onchange="render()"><option value="">All Beds</option></select>
+    <select class="filter-select" id="fba" onchange="render()"><option value="">All Baths</option></select>
+    <select class="filter-select" id="fg"  onchange="render()"><option value="">All Buildings</option></select>
+    <select class="filter-select" id="fs"  onchange="render()"><option value="">Sort by…</option></select>
+    <select class="filter-select" id="fd"  onchange="render()">
+      <option value="asc">▲ Asc</option>
+      <option value="desc">▼ Desc</option>
+    </select>
+  </div>
+
+  <div class="table-wrap"><div id="T"></div></div>
+  <div class="statsbar" id="S"></div>
+</div>
+
+<!-- ADD FROM LINK MODAL -->
+<div class="modal-overlay" id="add-modal">
+  <div class="modal">
+    <h2>+ Add from Link</h2>
+    <p>Paste the URL, then go to the listing, press <strong>Ctrl+A</strong> then <strong>Ctrl+C</strong> to copy the whole page, and paste it below.</p>
+
+    <div class="form-field">
+      <label>Apartments.com URL</label>
+      <input type="text" id="add-url" placeholder="https://www.apartments.com/building-name/abc123/">
+    </div>
+    <div class="form-field">
+      <label>Full Page Text (Ctrl+A → Ctrl+C on the listing, then paste here)</label>
+      <textarea class="paste-area" id="add-paste" placeholder="Paste page text here…"></textarea>
+    </div>
+
+    <div style="display:flex;gap:8px;align-items:center;">
+      <button class="btn btn-accent" onclick="parseAndShow()">» Extract Units</button>
+      <button class="btn btn-ghost"  onclick="closeAddModal()">Cancel</button>
+      <span id="add-msg" class="modal-msg" style="margin-top:0;margin-left:4px;"></span>
+    </div>
+
+    <!-- Picker — shown after parse -->
+    <div id="add-picker" style="display:none;margin-top:20px;border-top:1px solid var(--border);padding-top:18px;">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
+        <span style="font-size:11px;color:var(--muted);">Beds:</span>
+        <div class="pill-row" id="picker-bed-pills"></div>
+        <span style="font-size:11px;color:var(--muted);margin-left:6px;">Baths:</span>
+        <div class="pill-row" id="picker-bath-pills"></div>
+        <div style="margin-left:auto;display:flex;gap:6px;align-items:center;">
+          <button class="btn btn-ghost" style="padding:4px 10px;font-size:12px;" onclick="selectAllVisible()">✓ All</button>
+          <button class="btn btn-ghost" style="padding:4px 10px;font-size:12px;" onclick="deselectAll()">☐ None</button>
+          <span id="picker-count" style="font-size:12px;color:var(--accent);font-family:var(--mono);min-width:60px;text-align:right;"></span>
+        </div>
+      </div>
+      <div class="unit-list" id="picker-list"></div>
+      <button class="btn btn-green" style="width:100%;margin-top:4px;" onclick="saveSelected()">↓ Save Selected Units</button>
+    </div>
+  </div>
+</div>
+
+<!-- SETTINGS MODAL -->
+<div class="modal-overlay" id="settings-modal">
+  <div class="modal" style="max-width:440px;">
+    <h2>≡ Settings</h2>
+    <p>Change the shared passcode. Everyone needs the new one after this.</p>
+    <div class="form-field">
+      <label>Current Passcode</label>
+      <input type="password" id="cfg-current" placeholder="Current passcode">
+    </div>
+    <div class="form-field">
+      <label>New Passcode</label>
+      <input type="password" id="cfg-new" placeholder="New passcode">
+    </div>
+    <div style="display:flex;gap:8px;">
+      <button class="btn btn-accent" onclick="changePasscode()">Update Passcode</button>
+      <button class="btn btn-ghost"  onclick="closeSettings()">Cancel</button>
+    </div>
+    <div class="modal-msg" id="cfg-msg"></div>
+  </div>
+</div>
+
+<script>
+let rows = [], passcode = '';
+let parsedUnits = [], parsedBuilding = {};
+const REACTIONS = ['❤️','⭐','🤔','👎'];
+const DISPLAY_COLS = [
+  'Building','Unit','Floor Plan','Beds','Baths',
+  'Price','Sq Ft','Availability','Parking',
+  'Walk Score','Transit Score','Bike Score',
+  'Amenities','Phone','Saved On'
+];
+
+// auth
+async function tryLogin() {
+  const input = document.getElementById('passcode-input').value.trim();
+  const err = document.getElementById('login-error');
+  const btn = document.getElementById('login-btn');
+  if (!input) { err.textContent = 'Enter a passcode.'; return; }
+  btn.textContent = 'Checking…'; btn.disabled = true; err.textContent = '';
+  try {
+    const res = await fetch('/api', { headers: { 'X-Passcode': input } });
+    if (res.ok) {
+      passcode = input; sessionStorage.setItem('apt_pass', passcode);
+      const data = await res.json();
+      rows = Array.isArray(data) ? data : [];
+      enterApp();
+    } else if (res.status === 401) {
+      err.textContent = 'Wrong passcode.';
+      document.getElementById('passcode-input').value = '';
+    } else {
+      err.textContent = (await res.json().catch(()=>({}))).error || 'Error connecting.';
+    }
+  } catch(e) { err.textContent = 'Cannot reach server.'; }
+  btn.textContent = 'ENTER →'; btn.disabled = false;
+}
+
+function logout() {
+  sessionStorage.removeItem('apt_pass'); passcode = ''; rows = [];
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('passcode-input').value = '';
+  document.getElementById('login-error').textContent = '';
+}
+
+function enterApp() {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'flex';
+  populateFilters(); render(); setSyncStatus('ok', 'synced ✓');
+}
+
+window.onload = async () => {
+  const s = sessionStorage.getItem('apt_pass');
+  if (s) { document.getElementById('passcode-input').value = s; await tryLogin(); }
+};
+
+// sync
+function setSyncStatus(s, t) {
+  document.getElementById('sync-dot').className = 'sync-dot ' + s;
+  document.getElementById('sync-label').textContent = t;
+}
+async function syncPull() {
+  setSyncStatus('loading','syncing…');
+  try {
+    const res = await fetch('/api', { headers: { 'X-Passcode': passcode } });
+    if (!res.ok) throw new Error();
+    rows = await res.json();
+    populateFilters(); render(); setSyncStatus('ok','synced ✓');
+  } catch(e) { setSyncStatus('err','sync failed'); }
+}
+async function syncPush() {
+  setSyncStatus('loading','saving…');
+  try {
+    const res = await fetch('/api', {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json', 'X-Passcode': passcode },
+      body: JSON.stringify(rows)
+    });
+    if (!res.ok) throw new Error();
+    setSyncStatus('ok','saved ✓');
+  } catch(e) { setSyncStatus('err','save failed'); }
+}
+function saveAndSync() { populateFilters(); render(); syncPush(); }
+
+// paste parser
+function openAddModal() {
+  document.getElementById('add-modal').classList.add('open');
+  document.getElementById('add-picker').style.display = 'none';
+  document.getElementById('add-msg').textContent = '';
+}
+function closeAddModal() { document.getElementById('add-modal').classList.remove('open'); }
+
+function parsePageText(text, url) {
+  const b = {};
+
+  // Building name from URL slug
+  b.name = url
+    .replace(/https?:\/\/[^/]+\//,'')
+    .split('/').filter(Boolean)[0]
+    ?.replace(/-/g,' ')
+    .replace(/\b\w/g, c => c.toUpperCase())
+    || 'Unknown Building';
+
+  // Address
+  const addrM = text.match(/(\d+\s+[A-Z][a-zA-Z\s]+(?:Ave|St|Blvd|Dr|Ln|Rd|Way|Pl|Ct)[^\n,]*(?:,\s*[^\n,]+){0,3})/);
+  b.address = addrM ? addrM[1].trim().replace(/\s+/g,' ') : '';
+
+  // Phone
+  const phoneM = text.match(/\(?\d{3}\)?[\s.\-]?\d{3}[\s.\-]?\d{4}/);
+  b.phone = phoneM ? phoneM[0] : 'N/A';
+
+  // scores - look for "X / 100" near a label
+  const walkM    = text.match(/(\d{2,3})\s*\/\s*100[\s\S]{0,60}?Walkability/i)
+                || text.match(/Walkability[\s\S]{0,60}?(\d{2,3})\s*\/\s*100/i);
+  const transitM = text.match(/(\d{2,3})\s*\/\s*100[\s\S]{0,60}?Transit/i)
+                || text.match(/Transit[\s\S]{0,60}?(\d{2,3})\s*\/\s*100/i);
+  const bikeM    = text.match(/(\d{2,3})\s*\/\s*100[\s\S]{0,60}?Bikeability/i)
+                || text.match(/Bikeability[\s\S]{0,60}?(\d{2,3})\s*\/\s*100/i);
+  b.walkScore    = walkM    ? walkM[1]    : 'N/A';
+  b.transitScore = transitM ? transitM[1] : 'N/A';
+  b.bikeScore    = bikeM    ? bikeM[1]    : 'N/A';
+
+  // Parking
+  const parkM = text.match(/Garage\s+Lot[\s\S]{0,200}?Parking Fee[\s\S]{0,60}?(\$[\d,]+(?:\s*\/\s*mo)?)/i)
+             || text.match(/Parking Fee[\s\S]{0,60}?(\$[\d,]+(?:\s*\/\s*mo)?)/i);
+  b.parking = parkM ? parkM[1] : 'N/A';
+
+  // amenities - check which known keywords appear in the text
+  const amenityList = [
+    'Washer/Dryer','In-Unit Laundry','Air Conditioning','Heating','Dishwasher',
+    'Microwave','Refrigerator','Oven','Range','Ice Maker','Garbage Disposal',
+    'Granite Countertops','Stainless Steel Appliances','Eat-in Kitchen',
+    'High Ceilings','Hardwood Floors','Tile Floors','Carpet','Walk-In Closets',
+    'Large Bedrooms','Balcony','Deck','Patio','Terrace','Fireplace',
+    'Fitness Center','Swimming Pool','Hot Tub','Sauna','Spa',
+    'Roof Terrace','Rooftop Deck','Sundeck','Courtyard','Garden',
+    'Elevator','Controlled Access','Key Fob Entry','Concierge','Doorman',
+    '24 Hour Access','Maintenance on site','Package Lockers',
+    'Bicycle Storage','Bike Storage','EV Charging','Parking Garage',
+    'Pet Friendly','Dog Park','Pet Spa',
+    'Business Center','Co-working Space','Conference Room',
+    'Wheelchair Accessible','Smoke Free','Cable Ready','Intercom',
+  ];
+  b.amenities = amenityList.filter(a => text.includes(a)).join(', ') || 'N/A';
+
+  const units = [];
+  const seen  = new Set();
+
+  // try three patterns to find unit# + price + sqft
+  // pattern A: "307\n$2,650\n769\nNow"
+  const patA = /\b(\d{3,4}[A-Z]?)\n\$([0-9,]+)\n([0-9,]+)\n(Now|Available Now|[A-Z][a-z]+\s+\d+|N\/A)/g;
+  for (const m of text.matchAll(patA)) {
+    if (seen.has(m[1])) continue; seen.add(m[1]);
+    units.push({ unitNum:m[1], price:'$'+m[2], sqft:m[3].replace(',',''), avail:m[4].trim(), beds:'', baths:'', model:'' });
+  }
+
+  // pattern B: "Unit 307\n$2,650\n769\nNow"
+  const patB = /Unit\s+(\d{3,4}[A-Z]?)\s*\n?\s*\$([0-9,]+)\s*\n?\s*([0-9,]+)\s*\n?\s*(Now|Available Now|[A-Z][a-z]+\s+\d+|N\/A)/gi;
+  for (const m of text.matchAll(patB)) {
+    if (seen.has(m[1])) continue; seen.add(m[1]);
+    units.push({ unitNum:m[1], price:'$'+m[2], sqft:m[3].replace(',',''), avail:m[4].trim(), beds:'', baths:'', model:'' });
+  }
+
+  // pattern C: "Unit 307 $2,650 769 sq ft" all on one line
+  const patC = /\b(\d{3,4}[A-Z]?)\s+\$([0-9,]+)\s+([0-9,]+)\s+(?:Sq\s*Ft\s+)?(Now|Available Now|[A-Z][a-z]+\s+\d+)/gi;
+  for (const m of text.matchAll(patC)) {
+    if (seen.has(m[1])) continue; seen.add(m[1]);
+    units.push({ unitNum:m[1], price:'$'+m[2], sqft:m[3].replace(',',''), avail:m[4].trim(), beds:'', baths:'', model:'' });
+  }
+
+  // fill in beds/baths from the closest floor plan label above each unit
+  const fpPattern = /(\d+)\s+Beds?\s*\/\s*([\d.]+)\s+Baths?/gi;
+  const fpPositions = [];
+  for (const m of text.matchAll(fpPattern)) {
+    fpPositions.push({ pos: m.index, beds: m[1], baths: m[2] });
+  }
+
+  const modelPat = /\b([A-Z]\d{1,2}[A-Z]?(?:D|L)?)\b/g;
+
+  units.forEach(u => {
+    const unitPos = text.indexOf('\n' + u.unitNum + '\n');
+    if (unitPos < 0) return;
+    const before = fpPositions.filter(fp => fp.pos < unitPos);
+    if (before.length) {
+      const closest = before[before.length - 1];
+      u.beds  = closest.beds;
+      u.baths = closest.baths;
+    }
+    const slice = text.slice(Math.max(0, unitPos - 300), unitPos);
+    const modelM = [...slice.matchAll(modelPat)];
+    if (modelM.length) u.model = modelM[modelM.length - 1][1];
+  });
+
+  return { building: b, units };
+}
+
+function parseAndShow() {
+  const url  = document.getElementById('add-url').value.trim();
+  const text = document.getElementById('add-paste').value.trim();
+  const msg  = document.getElementById('add-msg');
+
+  if (text.length < 300) {
+    msg.style.color = 'var(--red)';
+    msg.textContent = '! Paste more — Ctrl+A then Ctrl+C on the full listing page.';
+    return;
+  }
+  msg.style.color = 'var(--muted)'; msg.textContent = 'Parsing…';
+
+  const { building, units } = parsePageText(text, url);
+  parsedBuilding = building; parsedBuilding.url = url;
+  parsedUnits = units;
+
+  if (!units.length) {
+    msg.style.color = 'var(--yellow)';
+    msg.textContent = '! No units found. Make sure to copy the whole page including the pricing section.';
+    return;
+  }
+
+  msg.style.color = 'var(--green)';
+  msg.textContent = `✓ Found ${units.length} units · ${building.name}`;
+
+  const beds  = ['All', ...[...new Set(units.map(u=>u.beds).filter(Boolean))].sort((a,b)=>parseFloat(a)-parseFloat(b))];
+  const baths = ['All', ...[...new Set(units.map(u=>u.baths).filter(Boolean))].sort((a,b)=>parseFloat(a)-parseFloat(b))];
+
+  document.getElementById('picker-bed-pills').innerHTML  = beds.map((b,i)=>`<button class="pill${i===0?' active':''}" data-bed="${b}" onclick="pillClick(this,'bed')">${b==='All'?'All Beds':b+'bd'}</button>`).join('');
+  document.getElementById('picker-bath-pills').innerHTML = baths.map((b,i)=>`<button class="pill${i===0?' active':''}" data-bath="${b}" onclick="pillClick(this,'bath')">${b==='All'?'All Baths':b+'ba'}</button>`).join('');
+
+  renderPickerList();
+  document.getElementById('add-picker').style.display = 'block';
+}
+
+function pillClick(el, type) {
+  document.querySelectorAll(`#picker-${type}-pills .pill`).forEach(p=>p.classList.remove('active'));
+  el.classList.add('active');
+  renderPickerList();
+}
+
+function getActivePill(type) {
+  return document.querySelector(`#picker-${type}-pills .pill.active`)?.dataset[type] || 'All';
+}
+
+function renderPickerList() {
+  const bedF  = getActivePill('bed');
+  const bathF = getActivePill('bath');
+  const filtered = parsedUnits.filter(u => {
+    if (bedF  !== 'All' && u.beds  !== bedF)  return false;
+    if (bathF !== 'All' && u.baths !== bathF) return false;
+    return true;
+  });
+
+  document.getElementById('picker-list').innerHTML = filtered.length
+    ? filtered.map(u => {
+        const idx = parsedUnits.indexOf(u);
+        const isNow = u.avail.toLowerCase().includes('now');
+        return `
+          <label class="unit-item">
+            <input type="checkbox" data-idx="${idx}" onchange="updatePickerCount()">
+            <div>
+              <div>
+                <span class="unit-name">Unit ${u.unitNum || '—'}</span>
+                <span class="unit-price">${u.price}</span>
+                ${u.avail !== 'N/A' ? `<span class="${isNow?'avail-now':'avail-soon'}">● ${u.avail}</span>` : ''}
+              </div>
+              <div class="unit-meta">
+                ${u.model ? `<span>${u.model}</span>` : ''}
+                ${u.beds  ? `<span>${u.beds}bd / ${u.baths||'?'}ba</span>` : ''}
+                ${u.sqft  ? `<span>${u.sqft} sqft</span>` : ''}
+              </div>
+            </div>
+          </label>`;
+      }).join('')
+    : '<div style="padding:24px;text-align:center;color:var(--muted);font-size:13px;">No units match.</div>';
+
+  updatePickerCount();
+}
+
+function updatePickerCount() {
+  const n = document.querySelectorAll('#picker-list input:checked').length;
+  document.getElementById('picker-count').textContent = n ? n + ' selected' : '';
+}
+function selectAllVisible() { document.querySelectorAll('#picker-list input').forEach(c=>c.checked=true); updatePickerCount(); }
+function deselectAll()       { document.querySelectorAll('#picker-list input').forEach(c=>c.checked=false); updatePickerCount(); }
+
+function saveSelected() {
+  const checked = [...document.querySelectorAll('#picker-list input:checked')];
+  if (!checked.length) { alert('Select at least one unit!'); return; }
+
+  rows.push(...checked.map(cb => {
+    const u = parsedUnits[parseInt(cb.dataset.idx)];
+    return {
+      Building: parsedBuilding.name,
+      Address:  parsedBuilding.address,
+      Phone:    parsedBuilding.phone,
+      Unit:     u.unitNum || '—',
+      'Floor Plan':    u.model   || '—',
+      Beds:            u.beds    || '—',
+      Baths:           u.baths   || '—',
+      Price:           u.price,
+      'Sq Ft':         u.sqft    || 'N/A',
+      Availability:    u.avail,
+      Amenities:       parsedBuilding.amenities,
+      Parking:         parsedBuilding.parking,
+      'Walk Score':    parsedBuilding.walkScore,
+      'Transit Score': parsedBuilding.transitScore,
+      'Bike Score':    parsedBuilding.bikeScore,
+      'Saved On':      new Date().toLocaleDateString(),
+      _url:            parsedBuilding.url,
+      _notes:          '',
+      _reactions:      [],
+      _savedAt:        Date.now() + Math.random()
+    };
+  }));
+
+  saveAndSync();
+  closeAddModal();
+  document.getElementById('add-url').value   = '';
+  document.getElementById('add-paste').value = '';
+}
+
+function toggleReaction(ri, emoji) {
+  if (!rows[ri]._reactions) rows[ri]._reactions = [];
+  const idx = rows[ri]._reactions.indexOf(emoji);
+  if (idx >= 0) rows[ri]._reactions.splice(idx, 1);
+  else rows[ri]._reactions.push(emoji);
+  saveAndSync();
+}
+
+// settings
+function openSettings()  { document.getElementById('settings-modal').classList.add('open'); }
+function closeSettings() { document.getElementById('settings-modal').classList.remove('open'); }
+
+async function changePasscode() {
+  const cur = document.getElementById('cfg-current').value.trim();
+  const nw  = document.getElementById('cfg-new').value.trim();
+  const msg = document.getElementById('cfg-msg');
+  if (!cur||!nw)         { msg.style.color='var(--red)';   msg.textContent='Fill in both fields.'; return; }
+  if (cur !== passcode)  { msg.style.color='var(--red)';   msg.textContent='Current passcode is wrong.'; return; }
+  msg.style.color='var(--muted)'; msg.textContent='Updating…';
+  try {
+    const res = await fetch('/api', { method:'POST', headers:{'Content-Type':'application/json','X-Passcode':passcode}, body:JSON.stringify({_action:'change_passcode',newPasscode:nw}) });
+    if (!res.ok) throw new Error();
+    passcode = nw; sessionStorage.setItem('apt_pass', nw);
+    msg.style.color='var(--green)'; msg.textContent='✓ Passcode updated!';
+    document.getElementById('cfg-current').value=''; document.getElementById('cfg-new').value='';
+  } catch(e) { msg.style.color='var(--red)'; msg.textContent='Failed.'; }
+}
+
+function populateFilters() {
+  function fill(id, vals, suf, lbl) {
+    const sel=document.getElementById(id); const cur=sel.value;
+    sel.innerHTML=`<option value="">${lbl}</option>`;
+    [...new Set(vals)].filter(Boolean).sort((a,b)=>parseFloat(a)-parseFloat(b)||String(a).localeCompare(String(b))).forEach(v=>{
+      const o=document.createElement('option'); o.value=v; o.textContent=v+(suf||''); if(v===cur) o.selected=true; sel.appendChild(o);
+    });
+  }
+  fill('fb',  rows.map(r=>r.Beds),     ' bed','All Beds');
+  fill('fba', rows.map(r=>r.Baths),    ' ba', 'All Baths');
+  fill('fg',  rows.map(r=>r.Building), '',    'All Buildings');
+  const fs=document.getElementById('fs'); const cur=fs.value;
+  fs.innerHTML='<option value="">Sort by…</option>';
+  DISPLAY_COLS.forEach(c=>{ const o=document.createElement('option'); o.value=c; o.textContent=c; if(c===cur) o.selected=true; fs.appendChild(o); });
+}
+
+function getFiltered() {
+  const q=document.getElementById('q').value.toLowerCase();
+  const fa=document.getElementById('fa').value, ff=document.getElementById('ff').value;
+  const fb=document.getElementById('fb').value, fba=document.getElementById('fba').value;
+  const fg=document.getElementById('fg').value, fs=document.getElementById('fs').value, fd=document.getElementById('fd').value;
+  let F=rows.filter(r=>{
+    if(q&&!Object.values(r).some(v=>String(v).toLowerCase().includes(q)))return false;
+    if(fb&&r.Beds!==fb)return false; if(fba&&r.Baths!==fba)return false; if(fg&&r.Building!==fg)return false;
+    if(fa==='now'&&!r.Availability?.toLowerCase().includes('now'))return false;
+    if(fa==='future'&&r.Availability?.toLowerCase().includes('now'))return false;
+    if(ff&&!(r._reactions||[]).includes(ff))return false;
+    return true;
+  });
+  if(fs){ F.sort((a,b)=>{ const av=a[fs]||'',bv=b[fs]||''; const an=parseFloat(av.replace(/[^\d.]/g,'')),bn=parseFloat(bv.replace(/[^\d.]/g,'')); const c=(!isNaN(an)&&!isNaN(bn))?an-bn:av.localeCompare(bv); return fd==='asc'?c:-c; }); }
+  return F;
+}
+
+function scoreBadge(v){ const n=parseInt(v); if(isNaN(n))return v; return`<span class="badge badge-${n>=70?'g':n>=50?'y':'r'}">${v}</span>`; }
+
+function render() {
+  const F=getFiltered(); const scoreC=['Walk Score','Transit Score','Bike Score'];
+  document.getElementById('unit-count').textContent=rows.length+' unit'+(rows.length!==1?'s':'');
+
+  if(!F.length){
+    document.getElementById('T').innerHTML=`<div class="empty"><div class="empty-icon">[ ]</div><div class="empty-text">${rows.length?'No units match.':'No units saved yet.'}</div><div class="empty-sub">${rows.length?'Try clearing a filter.':'Click "+ Add from Link" to get started.'}</div></div>`;
+    document.getElementById('S').innerHTML=''; return;
+  }
+
+  let h='<table><thead><tr>';
+  h+=`<th class="nosort" style="min-width:120px;">Reactions</th>`;
+  DISPLAY_COLS.forEach((c,i)=>h+=`<th onclick="sortBy(${i})">${c}</th>`);
+  h+=`<th class="nosort" style="min-width:150px;">Notes</th><th class="nosort" style="min-width:36px;"></th>`;
+  h+='</tr></thead><tbody>';
+
+  F.forEach(row=>{
+    const ri=rows.indexOf(row); const rxns=row._reactions||[];
+    h+='<tr>';
+
+    // Reactions
+    h+=`<td style="min-width:120px;"><div class="reactions">`;
+    REACTIONS.forEach(e=>{ h+=`<button class="react-btn${rxns.includes(e)?' on':''}" onclick="toggleReaction(${ri},'${e}')">${e}</button>`; });
+    h+=`</div></td>`;
+
+    // Data columns
+    DISPLAY_COLS.forEach(c=>{
+      const v=row[c]||''; let cell=v;
+      if(c==='Building'){
+        cell=row._url?`<a href="${row._url}" target="_blank" title="Open on apartments.com">${v||'—'}</a>`:v;
+      } else if(scoreC.includes(c)){
+        cell=scoreBadge(v);
+      } else if(c==='Availability'){
+        const cls=v.toLowerCase().includes('now')?'cell-now':!v||v==='N/A'?'cell-na':'cell-soon';
+        cell=`<span class="${cls}">${v||'—'}</span>`;
+      } else if(c==='Price'){
+        cell=`<span class="cell-price">${v}</span>`;
+      } else if(v.length>36){
+        cell=`<span title="${v.replace(/"/g,'&quot;')}">${v.slice(0,36)}…</span>`;
+      }
+      const editable = c !== 'Building';
+      h+=`<td ${editable?`contenteditable="true" onblur="editCell(event,${ri},'${c}')" spellcheck="false"`:''}>` + cell + `</td>`;
+    });
+
+    h+=`<td class="cell-notes" contenteditable="true" onblur="editNote(event,${ri})" spellcheck="false">${row._notes||''}</td>`;
+    h+=`<td><button class="del-btn" onclick="delRow(${ri})">✕</button></td>`;
+    h+='</tr>';
+  });
+  h+='</tbody></table>';
+  document.getElementById('T').innerHTML=h;
+
+  const prices=F.map(r=>parseFloat((r.Price||'').replace(/[^\d.]/g,''))).filter(n=>!isNaN(n));
+  const nowN=F.filter(r=>r.Availability?.toLowerCase().includes('now')).length;
+  document.getElementById('S').innerHTML=[
+    `<span class="stat">Showing <b>${F.length}</b> of <b>${rows.length}</b></span>`,
+    `<span class="stat">Available now: <b>${nowN}</b></span>`,
+    prices.length?`<span class="stat">Avg: <b>$${Math.round(prices.reduce((a,b)=>a+b)/prices.length).toLocaleString()}</b></span>`:'',
+    prices.length?`<span class="stat">Range: <b>$${Math.min(...prices).toLocaleString()} – $${Math.max(...prices).toLocaleString()}</b></span>`:'',
+  ].join('');
+}
+
+function sortBy(i){ document.getElementById('fs').value=DISPLAY_COLS[i]; const d=document.getElementById('fd'); d.value=d.value==='asc'?'desc':'asc'; render(); }
+
+function editCell(e,ri,col){ rows[ri][col]=e.target.innerText.trim(); saveAndSync(); }
+function editNote(e,ri){ rows[ri]._notes=e.target.innerText.trim(); saveAndSync(); }
+function delRow(i){ if(!confirm('Remove this unit?'))return; rows.splice(i,1); saveAndSync(); }
+function confirmClear(){ if(!confirm('Delete ALL?'))return; rows=[]; saveAndSync(); }
+
+function exportXLS(){
+  let h='<html><head><meta charset="UTF-8"><style>td{mso-number-format:"@";}</style></head><body><table>';
+  h+='<tr><th>Building</th><th>Address</th><th>Unit</th><th>Floor Plan</th><th>Beds</th><th>Baths</th><th>Price</th><th>Sq Ft</th><th>Availability</th><th>Parking</th><th>Walk Score</th><th>Transit Score</th><th>Bike Score</th><th>Amenities</th><th>Phone</th><th>URL</th><th>Saved On</th><th>Notes</th></tr>';
+  rows.forEach(r=>{ h+='<tr><td>'+(r.Building||'')+'</td><td>'+(r.Address||'')+'</td><td>'+(r.Unit||'')+'</td><td>'+(r['Floor Plan']||'')+'</td><td>'+(r.Beds||'')+'</td><td>'+(r.Baths||'')+'</td><td>'+(r.Price||'')+'</td><td>'+(r['Sq Ft']||'')+'</td><td>'+(r.Availability||'')+'</td><td>'+(r.Parking||'')+'</td><td>'+(r['Walk Score']||'')+'</td><td>'+(r['Transit Score']||'')+'</td><td>'+(r['Bike Score']||'')+'</td><td>'+(r.Amenities||'')+'</td><td>'+(r.Phone||'')+'</td><td>'+(r._url||'')+'</td><td>'+(r['Saved On']||'')+'</td><td>'+(r._notes||'')+'</td></tr>'; });
+  h+='</table></body></html>';
+  const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([h],{type:'application/vnd.ms-excel'})); a.download='apartments.xls'; a.click();
+}
+function exportJSON(){ const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([JSON.stringify(rows,null,2)],{type:'application/json'})); a.download='apartments.json'; a.click(); }
+
+function uploadXLS(){
+  const input=document.createElement('input'); input.type='file'; input.accept='.xls,.xlsx,.json';
+  input.onchange=e=>{
+    const file=e.target.files[0]; if(!file)return;
+    const reader=new FileReader();
+    reader.onload=ev=>{
+      const data=ev.target.result;
+      let newUnits = [];
+      if(file.name.toLowerCase().endsWith('.json')){
+        try {
+          const jsonData = JSON.parse(data);
+          if(Array.isArray(jsonData)){
+            newUnits = jsonData.map(unit => ({
+              ...unit,
+              _savedAt: unit._savedAt || Date.now() + Math.random(),
+              _reactions: unit._reactions || []
+            }));
+          }
+        } catch(err) {
+          alert('Invalid JSON file.');
+          return;
+        }
+      } else {
+        // Excel file (.xls or .xlsx)
+        const workbook = XLSX.read(data, {type: file.name.toLowerCase().endsWith('.xls') ? 'string' : 'array'});
+        const sheetName = workbook.SheetNames[0];
+        const sheet = workbook.Sheets[sheetName];
+        const jsonData = XLSX.utils.sheet_to_json(sheet);
+        newUnits = jsonData.map(row => ({
+          Building: row.Building || row.building || '',
+          Address: row.Address || row.address || '',
+          Unit: row.Unit || row.unit || '',
+          "Floor Plan": row["Floor Plan"] || row["floor plan"] || row["FloorPlan"] || '',
+          Beds: row.Beds || row.beds || '',
+          Baths: row.Baths || row.baths || '',
+          Price: (row.Price || row.price || '').toString().split(' – ')[0],
+          "Sq Ft": row["Sq Ft"] || row["sq ft"] || row["SqFt"] || '',
+          Availability: row.Availability || row.availability || '',
+          Parking: row.Parking || row.parking || '',
+          "Walk Score": row["Walk Score"] || row["walk score"] || '',
+          "Transit Score": row["Transit Score"] || row["transit score"] || '',
+          "Bike Score": row["Bike Score"] || row["bike score"] || '',
+          Amenities: row.Amenities || row.amenities || '',
+          Phone: row.Phone || row.phone || '',
+          _url: row.URL || row.url || '',
+          "Saved On": row["Saved On"] || row["saved on"] || new Date().toLocaleDateString(),
+          _notes: row.Notes || row.notes || '',
+          _reactions: [],
+          _savedAt: Date.now() + Math.random()
+        }));
+      }
+      if(newUnits.length){
+        rows.push(...newUnits); saveAndSync();
+        alert(`Added ${newUnits.length} units from ${file.name}!`);
+      } else {
+        alert('No valid units found in file.');
+      }
+    };
+    if(file.name.toLowerCase().endsWith('.json') || file.name.toLowerCase().endsWith('.xls')){
+      reader.readAsText(file);
+    } else {
+      reader.readAsArrayBuffer(file);
+    }
+  };
+  input.click();
+}
+setInterval(async()=>{
+  if(!passcode)return;
+  try{
+    const local=JSON.parse(localStorage.getItem('apt_units')||'[]');
+    const existingTs=new Set(rows.map(r=>r._savedAt));
+    const newOnes=local.filter(r=>!existingTs.has(r._savedAt));
+    if(newOnes.length){ rows.push(...newOnes); await syncPush(); populateFilters(); render(); }
+  }catch(e){}
+},4000);
+</script>
+</body>
+</html>
