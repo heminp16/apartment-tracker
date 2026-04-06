@@ -732,7 +732,7 @@ function render() {
   }
 
   let h='<table><thead><tr>';
-  h+=`<th class="nosort" style="min-width:70px;">Reactions</th>`;
+  h+=`<th class="nosort" style="min-width:70px;overflow:visible;">Reactions</th>`;
   DISPLAY_COLS.forEach((c,i)=>h+=`<th onclick="sortBy(${i})">${c}</th>`);
   h+=`<th class="nosort" style="min-width:150px;">Notes</th><th class="nosort" style="min-width:36px;"></th>`;
   h+='</tr></thead><tbody>';
@@ -742,7 +742,7 @@ function render() {
     h+=`<tr data-ri="${ri}">`;
 
     // Reactions — iOS style: show active + "+" picker
-    h+=`<td style="min-width:70px;"><div class="reactions">`;
+    h+=`<td style="min-width:70px;overflow:visible;white-space:normal;position:relative;"><div class="reactions">`;
     rxns.forEach(e=>{ h+=`<span class="react-active">${e}</span>`; });
     h+=`<button class="react-add" onclick="openReactPicker(event,${ri})">+</button>`;
     h+=`<div class="react-picker" id="rp-${ri}">`;
