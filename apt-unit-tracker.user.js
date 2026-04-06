@@ -6,8 +6,8 @@
 // @author       skyline
 // @match        https://www.apartments.com/*/*
 // @grant        none
-// @updateURL    https://github.com/heminp16/apartment-tracker/main/apt-unit-tracker.user.js
-// @downloadURL  https://github.com/heminp16/apartment-tracker/main/apt-unit-tracker.user.js
+// @updateURL    https://github.com/heminp16/apartment-tracker/raw/main/apt-unit-tracker.user.js
+// @downloadURL  https://github.com/heminp16/apartment-tracker/raw/main/apt-unit-tracker.user.js
 // ==/UserScript==
 
 (function () {
