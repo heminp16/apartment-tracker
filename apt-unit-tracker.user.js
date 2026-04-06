@@ -1,11 +1,13 @@
 // ==UserScript==
 // @name         Apartment Unit Tracker
 // @namespace    http://tampermonkey.net/
-// @version      7.0
+// @version      8.0
 // @description  Pick specific units to track from apartments.com
 // @author       skyline
 // @match        https://www.apartments.com/*/*
 // @grant        none
+// @updateURL    https://raw.githubusercontent.com/heminp16/apartment-tracker/main/apt-unit-tracker.user.js
+// @downloadURL  https://raw.githubusercontent.com/heminp16/apartment-tracker/main/apt-unit-tracker.user.js
 // ==/UserScript==
 
 (function () {
