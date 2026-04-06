@@ -79,11 +79,6 @@
     }
 
     function getSaved() { return JSON.parse(localStorage.getItem('apt_units') || '[]'); }
-    function saveUnits(entries) {
-        const saved = getSaved();
-        entries.forEach(e => saved.push(e));
-        localStorage.setItem('apt_units', JSON.stringify(saved));
-    }
 
     function showPicker() {
         const allUnits = getAvailableUnits();
@@ -277,7 +272,7 @@
         overlay.onclick = e => { if (e.target === overlay) overlay.remove(); };
 
         // Save
-        document.getElementById('apt-do-save').onclick = () => {
+        document.getElementById('apt-do-save').onclick = async () => {
             const checked = [...overlay.querySelectorAll('input[type=checkbox]:checked')];
             if (!checked.length) { alert('Select at least one unit!'); return; }
 
@@ -305,35 +300,57 @@
                     _reactions:      [],
                     _savedAt:        Date.now() + Math.random()
                 };
-
             });
 
-            saveUnits(entries);
-            document.getElementById('apt-count').textContent = getSaved().length;
-
-            // sync to cloud — prompt for passcode once if not saved
+            // get or prompt for passcode before saving anything
             let pass = localStorage.getItem('apt_tracker_passcode');
             if (!pass) {
-                pass = prompt('Enter your tracker passcode to enable auto-sync:');
-                if (pass) localStorage.setItem('apt_tracker_passcode', pass);
-            }
-            if (pass) {
-                const allSaved = getSaved();
-                fetch(CONFIG.apiUrl, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'X-Passcode': pass },
-                    body: JSON.stringify(allSaved)
-                }).catch(() => {});
+                pass = prompt('Enter your tracker passcode:');
+                if (!pass) return;
+                localStorage.setItem('apt_tracker_passcode', pass);
             }
 
             const btn = document.getElementById('apt-save-btn');
-            btn.textContent = `✅ ${checked.length} unit(s) saved!`;
-            btn.style.background = '#27ae60'; btn.style.borderColor = '#27ae60';
+
+            try {
+                const toSync = [...getSaved(), ...entries];
+                const res = await fetch(CONFIG.apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-Passcode': pass },
+                    body: JSON.stringify(toSync)
+                });
+
+                if (res.status === 401) {
+                    localStorage.removeItem('apt_tracker_passcode');
+                    overlay.remove();
+                    btn.textContent = '❌ Wrong passcode — not saved';
+                    btn.style.background = '#c0392b'; btn.style.borderColor = '#c0392b';
+                    setTimeout(() => {
+                        btn.textContent = '💾 Save Units';
+                        btn.style.background = '#1a1a2e'; btn.style.borderColor = '#7eb8f7';
+                    }, 3000);
+                    return;
+                }
+
+                if (!res.ok) throw new Error('sync failed');
+
+                // cloud confirmed — clear local staging area so old data can't be re-pushed
+                localStorage.removeItem('apt_units');
+                document.getElementById('apt-count').textContent = '0';
+                overlay.remove();
+                btn.textContent = `✅ ${checked.length} unit(s) saved!`;
+                btn.style.background = '#27ae60'; btn.style.borderColor = '#27ae60';
+
+            } catch (e) {
+                overlay.remove();
+                btn.textContent = '⚠️ Sync failed — not saved';
+                btn.style.background = '#e67e22'; btn.style.borderColor = '#e67e22';
+            }
+
             setTimeout(() => {
                 btn.textContent = '💾 Save Units';
                 btn.style.background = '#1a1a2e'; btn.style.borderColor = '#7eb8f7';
             }, 3000);
-            overlay.remove();
         };
     }
 

@@ -89,10 +89,15 @@ td a:hover { text-decoration:underline; opacity:.8; }
 .del-btn:hover { background:rgba(248,113,113,.15); color:var(--red); border-color:var(--red); }
 
 /* Reactions */
-.reactions { display:flex; gap:4px; align-items:center; }
-.react-btn { background:none; border:1px solid var(--border2); border-radius:8px; padding:3px 7px; cursor:pointer; font-size:14px; transition:all .15s; line-height:1.4; }
-.react-btn:hover { border-color:var(--accent); background:rgba(56,189,248,.08); }
-.react-btn.on { border-color:var(--accent2); background:rgba(129,140,248,.15); transform:scale(1.1); }
+.reactions { display:flex; gap:3px; align-items:center; flex-wrap:wrap; position:relative; }
+.react-active { font-size:15px; line-height:1; cursor:default; }
+.react-add { background:var(--card); border:1px solid var(--border2); border-radius:50%; width:22px; height:22px; cursor:pointer; font-size:13px; color:var(--muted); display:flex; align-items:center; justify-content:center; transition:all .15s; padding:0; flex-shrink:0; }
+.react-add:hover { border-color:var(--accent); color:var(--accent); }
+.react-picker { position:absolute; top:calc(100% + 4px); left:0; z-index:200; background:var(--card); border:1px solid var(--border2); border-radius:12px; padding:5px 6px; display:none; gap:2px; box-shadow:0 8px 24px rgba(0,0,0,.5); }
+.react-picker.open { display:flex; }
+.react-pick { background:none; border:1px solid transparent; border-radius:8px; padding:3px 5px; cursor:pointer; font-size:18px; transition:all .12s; line-height:1.3; }
+.react-pick:hover { background:rgba(56,189,248,.1); }
+.react-pick.on { background:rgba(129,140,248,.2); border-color:var(--accent2); transform:scale(1.15); }
 
 .empty { display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; gap:12px; color:var(--muted); padding:60px 20px; }
 .empty-icon { font-size:52px; filter:grayscale(1); opacity:.4; }
@@ -240,6 +245,23 @@ td a:hover { text-decoration:underline; opacity:.8; }
   </div>
 </div>
 
+<!-- CLEAR ALL MODAL -->
+<div class="modal-overlay" id="clear-modal">
+  <div class="modal" style="max-width:400px;">
+    <h2 style="color:var(--red);">× Clear All Units</h2>
+    <p>This permanently deletes all units from the cloud. Enter your passcode to confirm.</p>
+    <div class="form-field">
+      <label>Passcode</label>
+      <input type="password" id="clear-pass" placeholder="Enter passcode">
+    </div>
+    <div style="display:flex;gap:8px;">
+      <button class="btn btn-red" onclick="executeClear()">Delete Everything</button>
+      <button class="btn btn-ghost" onclick="closeClearModal()">Cancel</button>
+    </div>
+    <div class="modal-msg" id="clear-msg"></div>
+  </div>
+</div>
+
 <!-- SETTINGS MODAL -->
 <div class="modal-overlay" id="settings-modal">
   <div class="modal" style="max-width:440px;">
@@ -282,7 +304,7 @@ async function tryLogin() {
   try {
     const res = await fetch('/api', { headers: { 'X-Passcode': input } });
     if (res.ok) {
-      passcode = input; sessionStorage.setItem('apt_pass', passcode);
+      passcode = input; localStorage.setItem('apt_pass', passcode);
       const data = await res.json();
       rows = Array.isArray(data) ? data : [];
       enterApp();
@@ -297,7 +319,7 @@ async function tryLogin() {
 }
 
 function logout() {
-  sessionStorage.removeItem('apt_pass'); passcode = ''; rows = [];
+  localStorage.removeItem('apt_pass'); passcode = ''; rows = [];
   document.getElementById('app').style.display = 'none';
   document.getElementById('login-screen').style.display = 'flex';
   document.getElementById('passcode-input').value = '';
@@ -311,7 +333,7 @@ function enterApp() {
 }
 
 window.onload = async () => {
-  const s = sessionStorage.getItem('apt_pass');
+  const s = localStorage.getItem('apt_pass');
   if (s) { document.getElementById('passcode-input').value = s; await tryLogin(); }
 };
 
@@ -585,13 +607,65 @@ function saveSelected() {
   document.getElementById('add-paste').value = '';
 }
 
-function toggleReaction(ri, emoji) {
+async function toggleReaction(ri, emoji) {
+  const savedAt = rows[ri]._savedAt;
+
+  // fetch latest before writing so we don't clobber roomie's changes
+  try {
+    const res = await fetch('/api', { headers: { 'X-Passcode': passcode } });
+    if (res.ok) {
+      const latest = await res.json();
+      if (Array.isArray(latest)) mergeRows(latest);
+      // re-resolve ri since row order may have shifted
+      ri = rows.findIndex(r => r._savedAt === savedAt);
+      if (ri < 0) return;
+    }
+  } catch(e) { /* proceed with local data */ }
+
   if (!rows[ri]._reactions) rows[ri]._reactions = [];
   const idx = rows[ri]._reactions.indexOf(emoji);
   if (idx >= 0) rows[ri]._reactions.splice(idx, 1);
   else rows[ri]._reactions.push(emoji);
-  saveAndSync();
+  syncPush();
+
+  // update UI without full re-render
+  const rxns = rows[ri]._reactions;
+  const cell = document.querySelector(`tr[data-ri="${ri}"] .reactions`);
+  if (!cell) return;
+  cell.querySelectorAll('.react-active').forEach(e => e.remove());
+  rxns.forEach(e => {
+    const span = document.createElement('span');
+    span.className = 'react-active'; span.textContent = e;
+    cell.insertBefore(span, cell.querySelector('.react-add'));
+  });
+  cell.querySelectorAll('.react-pick').forEach(btn => {
+    btn.classList.toggle('on', rxns.includes(btn.dataset.emoji));
+  });
 }
+
+// merge server rows into local by _savedAt, preserving local notes edits
+function mergeRows(latest) {
+  latest.forEach(serverRow => {
+    const i = rows.findIndex(r => r._savedAt === serverRow._savedAt);
+    if (i >= 0) {
+      rows[i] = { ...serverRow, _notes: rows[i]._notes };
+    } else {
+      rows.push(serverRow);
+    }
+  });
+}
+
+function openReactPicker(e, ri) {
+  e.stopPropagation();
+  const picker = document.getElementById(`rp-${ri}`);
+  const isOpen = picker.classList.contains('open');
+  document.querySelectorAll('.react-picker.open').forEach(p => p.classList.remove('open'));
+  if (!isOpen) picker.classList.add('open');
+}
+
+document.addEventListener('click', () => {
+  document.querySelectorAll('.react-picker.open').forEach(p => p.classList.remove('open'));
+});
 
 // settings
 function openSettings()  { document.getElementById('settings-modal').classList.add('open'); }
@@ -607,7 +681,7 @@ async function changePasscode() {
   try {
     const res = await fetch('/api', { method:'POST', headers:{'Content-Type':'application/json','X-Passcode':passcode}, body:JSON.stringify({_action:'change_passcode',newPasscode:nw}) });
     if (!res.ok) throw new Error();
-    passcode = nw; sessionStorage.setItem('apt_pass', nw);
+    passcode = nw; localStorage.setItem('apt_pass', nw);
     msg.style.color='var(--green)'; msg.textContent='✓ Passcode updated!';
     document.getElementById('cfg-current').value=''; document.getElementById('cfg-new').value='';
   } catch(e) { msg.style.color='var(--red)'; msg.textContent='Failed.'; }
@@ -658,19 +732,22 @@ function render() {
   }
 
   let h='<table><thead><tr>';
-  h+=`<th class="nosort" style="min-width:120px;">Reactions</th>`;
+  h+=`<th class="nosort" style="min-width:70px;">Reactions</th>`;
   DISPLAY_COLS.forEach((c,i)=>h+=`<th onclick="sortBy(${i})">${c}</th>`);
   h+=`<th class="nosort" style="min-width:150px;">Notes</th><th class="nosort" style="min-width:36px;"></th>`;
   h+='</tr></thead><tbody>';
 
   F.forEach(row=>{
     const ri=rows.indexOf(row); const rxns=row._reactions||[];
-    h+='<tr>';
+    h+=`<tr data-ri="${ri}">`;
 
-    // Reactions
-    h+=`<td style="min-width:120px;"><div class="reactions">`;
-    REACTIONS.forEach(e=>{ h+=`<button class="react-btn${rxns.includes(e)?' on':''}" onclick="toggleReaction(${ri},'${e}')">${e}</button>`; });
-    h+=`</div></td>`;
+    // Reactions — iOS style: show active + "+" picker
+    h+=`<td style="min-width:70px;"><div class="reactions">`;
+    rxns.forEach(e=>{ h+=`<span class="react-active">${e}</span>`; });
+    h+=`<button class="react-add" onclick="openReactPicker(event,${ri})">+</button>`;
+    h+=`<div class="react-picker" id="rp-${ri}">`;
+    REACTIONS.forEach(e=>{ h+=`<button class="react-pick${rxns.includes(e)?' on':''}" data-emoji="${e}" onclick="toggleReaction(${ri},'${e}')">${e}</button>`; });
+    h+=`</div></div></td>`;
 
     // Data columns
     DISPLAY_COLS.forEach(c=>{
@@ -684,6 +761,8 @@ function render() {
         cell=`<span class="${cls}">${v||'—'}</span>`;
       } else if(c==='Price'){
         cell=`<span class="cell-price">${v}</span>`;
+      } else if(c==='Amenities'){
+        cell=`<span title="${v.replace(/"/g,'&quot;')}">${v}</span>`;
       } else if(v.length>36){
         cell=`<span title="${v.replace(/"/g,'&quot;')}">${v.slice(0,36)}…</span>`;
       }
@@ -713,7 +792,22 @@ function sortBy(i){ document.getElementById('fs').value=DISPLAY_COLS[i]; const d
 function editCell(e,ri,col){ rows[ri][col]=e.target.innerText.trim(); saveAndSync(); }
 function editNote(e,ri){ rows[ri]._notes=e.target.innerText.trim(); saveAndSync(); }
 function delRow(i){ if(!confirm('Remove this unit?'))return; rows.splice(i,1); saveAndSync(); }
-function confirmClear(){ if(!confirm('Delete ALL?'))return; rows=[]; saveAndSync(); }
+function confirmClear(){
+  document.getElementById('clear-pass').value='';
+  document.getElementById('clear-msg').textContent='';
+  document.getElementById('clear-modal').classList.add('open');
+}
+function closeClearModal(){ document.getElementById('clear-modal').classList.remove('open'); }
+async function executeClear(){
+  const entered = document.getElementById('clear-pass').value.trim();
+  const msg = document.getElementById('clear-msg');
+  if(!entered){ msg.style.color='var(--red)'; msg.textContent='Enter your passcode.'; return; }
+  if(entered !== passcode){ msg.style.color='var(--red)'; msg.textContent='Wrong passcode.'; return; }
+  msg.style.color='var(--muted)'; msg.textContent='Deleting…';
+  rows=[];
+  saveAndSync();
+  closeClearModal();
+}
 
 function exportXLS(){
   let h='<html><head><meta charset="UTF-8"><style>td{mso-number-format:"@";}</style></head><body><table>';
@@ -790,6 +884,20 @@ function uploadXLS(){
   };
   input.click();
 }
+
+// poll every 30s when tab is visible to pick up roomie's changes
+setInterval(async () => {
+  if (!passcode || document.hidden) return;
+  try {
+    const res = await fetch('/api', { headers: { 'X-Passcode': passcode } });
+    if (!res.ok) return;
+    const latest = await res.json();
+    if (!Array.isArray(latest)) return;
+    const prevCount = rows.length;
+    mergeRows(latest);
+    if (rows.length !== prevCount) { populateFilters(); render(); }
+  } catch(e) {}
+}, 30000);
 </script>
 </body>
 </html>
