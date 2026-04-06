@@ -172,6 +172,7 @@ td a:hover { text-decoration:underline; opacity:.8; }
       <button class="btn btn-ghost"  onclick="syncPull()">⟳ Refresh</button>
       <button class="btn btn-ghost"  onclick="openSettings()">≡ Settings</button>
       <button class="btn btn-green"  onclick="exportXLS()">↓ Excel</button>
+      <button class="btn btn-ghost"  onclick="dedupe()">⊘ Dedupe</button>
       <button class="btn btn-red"    onclick="confirmClear()">× Clear All</button>
       <button class="btn btn-logout" onclick="logout()">Sign out</button>
     </div>
@@ -793,6 +794,18 @@ function sortBy(i){ document.getElementById('fs').value=DISPLAY_COLS[i]; const d
 function editCell(e,ri,col){ rows[ri][col]=e.target.innerText.trim(); saveAndSync(); }
 function editNote(e,ri){ rows[ri]._notes=e.target.innerText.trim(); saveAndSync(); }
 function delRow(i){ if(!confirm('Remove this unit?'))return; rows[i]._isDeleted=true; saveAndSync(); }
+function dedupe(){
+  const seen = new Set();
+  let removed = 0;
+  rows.forEach(r => {
+    if(r._isDeleted) return;
+    const key = `${r.Building}||${r.Unit}`;
+    if(seen.has(key)){ r._isDeleted=true; removed++; } else { seen.add(key); }
+  });
+  if(!removed){ alert('No duplicates found.'); return; }
+  saveAndSync();
+  alert(`Removed ${removed} duplicate${removed!==1?'s':''}.`);
+}
 function confirmClear(){
   document.getElementById('clear-pass').value='';
   document.getElementById('clear-msg').textContent='';

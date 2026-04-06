@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Apartment Unit Tracker
 // @namespace    http://tampermonkey.net/
-// @version      8.0
+// @version      9.0
 // @description  Pick specific units to track from apartments.com
 // @author       skyline
 // @match        https://www.apartments.com/*/*
@@ -327,10 +327,13 @@
 
                 const merged = [...cloudData, ...local];
                 entries.forEach(entry => {
-                    const deleted = merged.findIndex(r => r._isDeleted && r.Building === entry.Building && r.Unit === entry.Unit);
-                    if (deleted >= 0) {
-                        merged[deleted] = { ...merged[deleted], ...entry, _isDeleted: false };
-                    } else if (!merged.find(r => !r._isDeleted && r._savedAt === entry._savedAt)) {
+                    const sameUnit = r => r.Building === entry.Building && r.Unit === entry.Unit;
+                    const deletedIdx = merged.findIndex(r => r._isDeleted && sameUnit(r));
+                    if (deletedIdx >= 0) {
+                        // undelete and refresh with new data
+                        merged[deletedIdx] = { ...merged[deletedIdx], ...entry, _isDeleted: false };
+                    } else if (!merged.find(r => !r._isDeleted && sameUnit(r))) {
+                        // only add if not already present
                         merged.push(entry);
                     }
                 });
