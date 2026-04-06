@@ -313,7 +313,29 @@
             const btn = document.getElementById('apt-save-btn');
 
             try {
-                const toSync = [...getSaved(), ...entries];
+                // fetch cloud first so we don't overwrite other buildings already saved
+                let cloudData = [];
+                const getRes = await fetch(CONFIG.apiUrl, {
+                    headers: { 'X-Passcode': pass }
+                });
+                if (getRes.ok) cloudData = await getRes.json();
+
+                // merge: cloud + local staging + new entries
+                // if a new entry matches a soft-deleted cloud row (same building+unit), undelete it
+                const seen = new Set(cloudData.map(r => r._savedAt));
+                const local = getSaved().filter(r => !seen.has(r._savedAt));
+
+                const merged = [...cloudData, ...local];
+                entries.forEach(entry => {
+                    const deleted = merged.findIndex(r => r._isDeleted && r.Building === entry.Building && r.Unit === entry.Unit);
+                    if (deleted >= 0) {
+                        merged[deleted] = { ...merged[deleted], ...entry, _isDeleted: false };
+                    } else if (!merged.find(r => !r._isDeleted && r._savedAt === entry._savedAt)) {
+                        merged.push(entry);
+                    }
+                });
+                const toSync = merged;
+
                 const res = await fetch(CONFIG.apiUrl, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'X-Passcode': pass },
@@ -336,7 +358,7 @@
 
                 // cloud confirmed — clear local staging area so old data can't be re-pushed
                 localStorage.removeItem('apt_units');
-                document.getElementById('apt-count').textContent = '0';
+                document.getElementById('apt-count').textContent = toSync.length;
                 overlay.remove();
                 btn.textContent = `✅ ${checked.length} unit(s) saved!`;
                 btn.style.background = '#27ae60'; btn.style.borderColor = '#27ae60';

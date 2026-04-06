@@ -709,6 +709,7 @@ function getFiltered() {
   const fb=document.getElementById('fb').value, fba=document.getElementById('fba').value;
   const fg=document.getElementById('fg').value, fs=document.getElementById('fs').value, fd=document.getElementById('fd').value;
   let F=rows.filter(r=>{
+    if(r._isDeleted)return false;
     if(q&&!Object.values(r).some(v=>String(v).toLowerCase().includes(q)))return false;
     if(fb&&r.Beds!==fb)return false; if(fba&&r.Baths!==fba)return false; if(fg&&r.Building!==fg)return false;
     if(fa==='now'&&!r.Availability?.toLowerCase().includes('now'))return false;
@@ -791,7 +792,7 @@ function sortBy(i){ document.getElementById('fs').value=DISPLAY_COLS[i]; const d
 
 function editCell(e,ri,col){ rows[ri][col]=e.target.innerText.trim(); saveAndSync(); }
 function editNote(e,ri){ rows[ri]._notes=e.target.innerText.trim(); saveAndSync(); }
-function delRow(i){ if(!confirm('Remove this unit?'))return; rows.splice(i,1); saveAndSync(); }
+function delRow(i){ if(!confirm('Remove this unit?'))return; rows[i]._isDeleted=true; saveAndSync(); }
 function confirmClear(){
   document.getElementById('clear-pass').value='';
   document.getElementById('clear-msg').textContent='';
