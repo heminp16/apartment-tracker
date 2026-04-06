@@ -309,23 +309,19 @@
             saveUnits(entries);
             document.getElementById('apt-count').textContent = getSaved().length;
 
-            // Ask to sync immediately
-            if (confirm('Units saved! Sync to cloud now?')) {
-                let pass = localStorage.getItem('apt_tracker_passcode');
-                if (!pass) {
-                    pass = prompt('Enter passcode:');
-                    if (pass) localStorage.setItem('apt_tracker_passcode', pass);
-                }
-                if (pass) {
-                    fetch(CONFIG.apiUrl, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json', 'X-Passcode': pass },
-                        body: JSON.stringify(entries)
-                    }).then(r => r.json()).then(d => {
-                        if (d.ok) alert('Synced to cloud!');
-                        else alert('Sync failed: ' + (d.error || 'Unknown error'));
-                    }).catch(e => alert('Sync error'));
-                }
+            // sync to cloud — prompt for passcode once if not saved
+            let pass = localStorage.getItem('apt_tracker_passcode');
+            if (!pass) {
+                pass = prompt('Enter your tracker passcode to enable auto-sync:');
+                if (pass) localStorage.setItem('apt_tracker_passcode', pass);
+            }
+            if (pass) {
+                const allSaved = getSaved();
+                fetch(CONFIG.apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-Passcode': pass },
+                    body: JSON.stringify(allSaved)
+                }).catch(() => {});
             }
 
             const btn = document.getElementById('apt-save-btn');

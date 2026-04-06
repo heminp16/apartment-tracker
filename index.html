@@ -429,6 +429,13 @@ function parsePageText(text, url) {
     units.push({ unitNum:m[1], price:'$'+m[2], sqft:m[3].replace(',',''), avail:m[4].trim(), beds:'', baths:'', model:'' });
   }
 
+  // pattern D: apartments.com labeled format — "Unit\n0905\nprice\n$3,565\nsquare feet\n795\navailibilityNow"
+  const patD = /Unit\n([A-Za-z0-9]+)\nprice\n\$([0-9,]+)\nsquare feet\n([0-9,]+)\navailibility([^\n]+)/g;
+  for (const m of text.matchAll(patD)) {
+    if (seen.has(m[1])) continue; seen.add(m[1]);
+    units.push({ unitNum:m[1], price:'$'+m[2], sqft:m[3].replace(',',''), avail:m[4].trim(), beds:'', baths:'', model:'' });
+  }
+
   // fill in beds/baths from the closest floor plan label above each unit
   const fpPattern = /(\d+)\s+Beds?\s*\/\s*([\d.]+)\s+Baths?/gi;
   const fpPositions = [];
@@ -783,15 +790,6 @@ function uploadXLS(){
   };
   input.click();
 }
-setInterval(async()=>{
-  if(!passcode)return;
-  try{
-    const local=JSON.parse(localStorage.getItem('apt_units')||'[]');
-    const existingTs=new Set(rows.map(r=>r._savedAt));
-    const newOnes=local.filter(r=>!existingTs.has(r._savedAt));
-    if(newOnes.length){ rows.push(...newOnes); await syncPush(); populateFilters(); render(); }
-  }catch(e){}
-},4000);
 </script>
 </body>
 </html>
